@@ -1,18 +1,16 @@
 import jwt from 'jsonwebtoken';
 import type { JWTPayload } from '../types/index';
-
-const secret = process.env.JWT_SECRET || 'your-secret-key';
-const expiry = process.env.JWT_EXPIRY || '7d';
+import { env } from '../config/env';
 
 export const generateToken = (payload: JWTPayload): string => {
-  return jwt.sign(payload, secret, {
-    expiresIn: expiry,
+  return jwt.sign(payload, env.jwtSecret, {
+    expiresIn: env.jwtExpiry,
   });
 };
 
 export const verifyToken = (token: string): JWTPayload => {
   try {
-    return jwt.verify(token, secret) as JWTPayload;
+    return jwt.verify(token, env.jwtSecret) as JWTPayload;
   } catch (error) {
     throw new Error('Invalid or expired token');
   }

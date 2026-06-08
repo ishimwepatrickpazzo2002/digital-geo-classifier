@@ -12,6 +12,7 @@ export const users = pgTable('users', {
 export const soilReports = pgTable('soil_reports', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  sampleName: text('sample_name').notNull(),
   sieveNo200: numeric('sieve_no_200', { precision: 5, scale: 2 }).notNull(),
   sieveNo4: numeric('sieve_no_4', { precision: 5, scale: 2 }).notNull(),
   liquidLimit: numeric('liquid_limit', { precision: 5, scale: 2 }).notNull(),

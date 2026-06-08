@@ -1,11 +1,18 @@
+import 'dotenv/config';
 import { defineConfig } from 'drizzle-kit';
+
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error('Missing required environment variable: DATABASE_URL');
+}
 
 export default defineConfig({
   schema: './src/schemas',
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/digital_geo_classifier',
+    url: databaseUrl,
   },
   verbose: true,
   strict: true,

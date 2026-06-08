@@ -20,10 +20,17 @@ const pool = new Pool({
 
 const runMigrations = async () => {
   try {
-    const migrationFile = path.join(__dirname, '0001_create_tables.sql');
-    const migrationSQL = fs.readFileSync(migrationFile, 'utf-8');
+    const migrationFiles = fs
+      .readdirSync(__dirname)
+      .filter(file => file.endsWith('.sql'))
+      .sort();
 
-    await pool.query(migrationSQL);
+    for (const file of migrationFiles) {
+      const migrationFile = path.join(__dirname, file);
+      const migrationSQL = fs.readFileSync(migrationFile, 'utf-8');
+      await pool.query(migrationSQL);
+      console.log(`Applied migration: ${file}`);
+    }
     console.log('Migrations completed successfully');
   } catch (error: unknown) {
     if (error instanceof Error && 'code' in error && (error as any).code === 'ECONNREFUSED') {

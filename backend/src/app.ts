@@ -2,9 +2,8 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { asyncHandler } from './utils/asyncHandler';
+import { env } from './config/env';
 import { errorHandler } from './middleware';
-import { logger } from './utils/logger';
 
 // Routes
 import authRoutes from './routes/auth';
@@ -17,7 +16,7 @@ export const createApp = (): Express => {
   // Middleware
   app.use(helmet());
   app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: env.corsOrigin,
     credentials: true,
   }));
   app.use(morgan('combined'));

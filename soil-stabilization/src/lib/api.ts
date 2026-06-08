@@ -1,5 +1,9 @@
 // src/lib/api.ts
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://digital-geo-classifier.onrender.com/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/+$/, '');
+
+if (!API_BASE_URL) {
+  throw new Error('Missing required environment variable: VITE_API_URL');
+}
 
 interface ApiResponse<T> {
   success: boolean;
@@ -130,8 +134,8 @@ export async function fetchCurrentUser(): Promise<AppUser> {
 }
 
 type ReportResponse = Partial<SoilAnalysis> & {
-  userId?: string;
-  sieveNo200?: number;
+  userId?: string;  sampleName?: string;
+  sample_name?: string;  sieveNo200?: number;
   sieveNo4?: number;
   liquidLimit?: number | null;
   plasticLimit?: number | null;
@@ -147,7 +151,7 @@ function normalizeAnalysis(report: ReportResponse): SoilAnalysis {
   return {
     id: report.id ?? crypto.randomUUID(),
     user_id: report.user_id ?? report.userId ?? '',
-    sample_name: report.sample_name ?? 'Unnamed Sample',
+    sample_name: report.sample_name ?? report.sampleName ?? 'Unnamed Sample',
     percent_passing_200: report.percent_passing_200 ?? report.sieveNo200 ?? 0,
     percent_passing_4: report.percent_passing_4 ?? report.sieveNo4 ?? 0,
     liquid_limit: report.liquid_limit ?? report.liquidLimit ?? null,
@@ -170,18 +174,14 @@ export async function createAnalysis(
   const report = await apiCall<ReportResponse>('/reports', {
     method: 'POST',
     body: JSON.stringify({
-      sample_name: input.sample_name,
-      percent_passing_200: input.percent_passing_200,
-      percent_passing_4: input.percent_passing_4,
-      liquid_limit: input.liquid_limit ?? null,
-      plastic_limit: input.plastic_limit ?? null,
-      plasticity_index: input.plasticity_index ?? null,
-      soil_class: input.soil_class,
-      soil_description: input.soil_description,
-      plasticity_level: input.plasticity_level,
-      confidence: input.confidence,
-      treatment: input.treatment,
-      notes: input.notes ?? '',
+      sampleName: input.sample_name,
+      sieveNo200: input.percent_passing_200,
+      sieveNo4: input.percent_passing_4,
+      liquidLimit: input.liquid_limit ?? null,
+      plasticLimit: input.plastic_limit ?? null,
+      plasticityIndex: input.plasticity_index ?? null,
+      soilClassification: input.soil_class,
+      treatmentRecommendation: input.treatment,
     }),
   });
   return normalizeAnalysis(report);

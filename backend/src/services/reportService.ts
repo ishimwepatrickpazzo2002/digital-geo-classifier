@@ -31,6 +31,7 @@ export const reportService = {
       .insert(soilReports)
       .values({
         userId,
+        sampleName: input.sampleName ?? 'Unnamed Sample',
         sieveNo200: input.sieveNo200.toString(),
         sieveNo4: input.sieveNo4.toString(),
         liquidLimit: input.liquidLimit.toString(),
@@ -46,6 +47,7 @@ export const reportService = {
     return {
       id: report.id,
       userId: report.userId, // Changed from report.user_id
+      sampleName: report.sampleName ?? report.sample_name ?? 'Unnamed Sample',
       sieveNo200: parseFloat(report.sieveNo200 as unknown as string), // Changed from report.sieve_no_200
       sieveNo4: parseFloat(report.sieveNo4 as unknown as string), // Changed from report.sieve_no_4
       liquidLimit: parseFloat(report.liquidLimit as unknown as string), // Changed from report.liquid_limit
@@ -67,6 +69,7 @@ export const reportService = {
     return reports.map((report) => ({
       id: report.id,
       userId: report.userId, // Changed from report.user_id
+      sampleName: report.sampleName ?? report.sample_name ?? 'Unnamed Sample',
       sieveNo200: parseFloat(report.sieveNo200 as unknown as string),
       sieveNo4: parseFloat(report.sieveNo4 as unknown as string),
       liquidLimit: parseFloat(report.liquidLimit as unknown as string),
@@ -93,6 +96,7 @@ export const reportService = {
     return {
       id: report.id,
       userId: report.userId, // Changed from report.user_id
+      sampleName: report.sampleName ?? report.sample_name ?? 'Unnamed Sample',
       sieveNo200: parseFloat(report.sieveNo200 as unknown as string),
       sieveNo4: parseFloat(report.sieveNo4 as unknown as string),
       liquidLimit: parseFloat(report.liquidLimit as unknown as string),

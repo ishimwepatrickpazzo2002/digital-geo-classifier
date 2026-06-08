@@ -11,6 +11,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE TABLE IF NOT EXISTS soil_reports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sample_name TEXT NOT NULL,
   sieve_no_200 NUMERIC(5, 2) NOT NULL,
   sieve_no_4 NUMERIC(5, 2) NOT NULL,
   liquid_limit NUMERIC(5, 2) NOT NULL,
