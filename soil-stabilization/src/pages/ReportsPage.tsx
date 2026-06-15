@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, RadarChart, Radar, PolarGrid, PolarAngleAxis
@@ -15,6 +17,7 @@ export default function ReportsPage() {
   const [analyses, setAnalyses] = useState<SoilAnalysis[]>([]);
   const [selected, setSelected] = useState<SoilAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -76,40 +79,181 @@ export default function ReportsPage() {
   })) : [];
 
   function handlePrint() {
-    window.print();
+    if (!reportRef.current) return;
+    
+    const printWindow = window.open('', '', 'height=600,width=800');
+    if (!printWindow) {
+      addToast('Could not open print window', 'error');
+      return;
+    }
+
+    const reportContent = reportRef.current.innerHTML;
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Digital Geo Classifier - Analysis Report</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
+          h2, h3 { color: #1e2b87; margin-top: 20px; }
+          .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+          .summary-card { background: #f9fafb; padding: 15px; border-radius: 8px; border-left: 4px solid #1e2b87; }
+          .summary-card p { margin: 5px 0; }
+          .label { font-size: 12px; color: #666; text-transform: uppercase; }
+          .value { font-size: 20px; font-weight: bold; color: #1e2b87; }
+          table { width: 100%; margin: 15px 0; border-collapse: collapse; }
+          td { padding: 10px; border-bottom: 1px solid #e5e7eb; }
+          td:first-child { font-weight: 600; width: 40%; }
+          .charts { margin: 30px 0; }
+          .chart-section { margin-top: 20px; page-break-inside: avoid; }
+          @media print {
+            body { margin: 0; padding: 15px; }
+            .summary { grid-template-columns: repeat(2, 1fr); }
+            .chart-section { page-break-inside: avoid; }
+          }
+        </style>
+      </head>
+      <body>
+        <h1>DIGITAL GEO CLASSIFIER — ANALYSIS REPORT</h1>
+        <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+        <p><strong>Sample Name:</strong> ${selected?.sample_name}</p>
+        <hr>
+        ${reportContent}
+        <script>
+          window.onload = () => {
+            setTimeout(() => window.print(), 100);
+            setTimeout(() => window.close(), 1000);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
   }
 
-  function handleExport() {
-    if (!selected || !result) return;
-    const content = `DIGITAL GEO CLASSIFIER — ANALYSIS REPORT
-Generated: ${new Date().toLocaleString()}
----
-Sample: ${selected.sample_name}
-Classification: ${result.soilClass} — ${result.soilDescription}
-Plasticity Level: ${result.plasticityLevel}
-Confidence: ${result.confidence}%
----
-Input Data:
-  % Passing #200: ${selected.percent_passing_200}%
-  % Passing #4: ${selected.percent_passing_4}%
-  Liquid Limit: ${selected.liquid_limit ?? 'N/A'}%
-  Plastic Limit: ${selected.plastic_limit ?? 'N/A'}%
-  Plasticity Index: ${selected.plasticity_index ?? 'N/A'}
----
-Treatment Recommendation: ${result.treatment}
-Construction Suitability: ${result.treatmentDetails.constructionSuitability}
----
-Engineering Characteristics:
-${result.engineeringCharacteristics.map(c => '  • ' + c).join('\n')}
-`;
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `geo-classifier-${selected.sample_name.replace(/\s+/g, '-')}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    addToast('Report exported successfully!', 'success');
+  async function handleExport() {
+    if (!selected || !result || !reportRef.current) return;
+    
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 15;
+      const contentWidth = pageWidth - 2 * margin;
+      const contentHeight = (canvas.height * contentWidth) / canvas.width;
+
+      let yPosition = margin;
+
+      // Add title
+      pdf.setFontSize(16);
+      pdf.text('DIGITAL GEO CLASSIFIER - ANALYSIS REPORT', margin, yPosition);
+      yPosition += 10;
+
+      pdf.setFontSize(10);
+      pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, yPosition);
+      yPosition += 5;
+      pdf.text(`Sample: ${selected.sample_name}`, margin, yPosition);
+      yPosition += 10;
+
+      // Add report content
+      pdf.addImage(imgData, 'PNG', margin, yPosition, contentWidth, contentHeight);
+      yPosition += contentHeight + 10;
+
+      // Check if we need a new page
+      if (yPosition > pageHeight - margin) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+
+      // Add summary information
+      pdf.setFontSize(12);
+      pdf.text('Analysis Summary', margin, yPosition);
+      yPosition += 8;
+
+      pdf.setFontSize(10);
+      const summaryData = [
+        ['Classification', result.soilClass],
+        ['Description', result.soilDescription],
+        ['Confidence', `${result.confidence}%`],
+        ['Plasticity Level', result.plasticityLevel],
+        ['Treatment', result.treatment],
+        ['Construction Suitability', result.treatmentDetails.constructionSuitability],
+      ];
+
+      summaryData.forEach(([label, value]) => {
+        if (yPosition > pageHeight - margin - 10) {
+          pdf.addPage();
+          yPosition = margin;
+        }
+        pdf.text(`${label}:`, margin, yPosition);
+        pdf.text(String(value), margin + 50, yPosition);
+        yPosition += 6;
+      });
+
+      // Add input data section
+      yPosition += 5;
+      if (yPosition > pageHeight - margin - 20) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+
+      pdf.setFontSize(12);
+      pdf.text('Input Data', margin, yPosition);
+      yPosition += 8;
+
+      pdf.setFontSize(10);
+      const inputData = [
+        [`% Passing #200`, `${selected.percent_passing_200}%`],
+        [`% Passing #4`, `${selected.percent_passing_4}%`],
+        [`Liquid Limit`, `${selected.liquid_limit ?? 'N/A'}%`],
+        [`Plastic Limit`, `${selected.plastic_limit ?? 'N/A'}%`],
+      ];
+
+      inputData.forEach(([label, value]) => {
+        pdf.text(`${label}: ${value}`, margin + 5, yPosition);
+        yPosition += 6;
+      });
+
+      // Add engineering characteristics
+      yPosition += 5;
+      if (yPosition > pageHeight - margin - 20) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+
+      pdf.setFontSize(12);
+      pdf.text('Engineering Characteristics', margin, yPosition);
+      yPosition += 8;
+
+      pdf.setFontSize(10);
+      result.engineeringCharacteristics.forEach((char) => {
+        if (yPosition > pageHeight - margin - 5) {
+          pdf.addPage();
+          yPosition = margin;
+        }
+        pdf.text(`• ${char}`, margin + 5, yPosition);
+        yPosition += 5;
+      });
+
+      // Download PDF
+      pdf.save(`geo-classifier-${selected.sample_name.replace(/\s+/g, '-')}.pdf`);
+      addToast('Report exported as PDF successfully!', 'success');
+    } catch (error) {
+      addToast('Failed to export report as PDF', 'error');
+      console.error('PDF export error:', error);
+    }
   }
 
   if (loading) {
@@ -183,7 +327,7 @@ ${result.engineeringCharacteristics.map(c => '  • ' + c).join('\n')}
       )}
 
       {selected && result && (
-        <>
+        <div ref={reportRef} className="space-y-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
@@ -270,7 +414,7 @@ ${result.engineeringCharacteristics.map(c => '  • ' + c).join('\n')}
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </>
+        </div>
       )}
 
       {/* Aggregate charts */}
